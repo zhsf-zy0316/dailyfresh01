@@ -9,8 +9,10 @@ from django.db.utils import IntegrityError
 from django.http.response import HttpResponse
 from django.shortcuts import render, redirect
 from django.views.generic import View
+from django_redis import get_redis_connection
 from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired
 
+from apps.goods.models import GoodsSKU
 from apps.users.models import User, Address
 from celery_tasks.tasks import send_active_mail
 from dailyfresh import settings
@@ -207,10 +209,25 @@ class UserInfoView(LoginRequiredMixin, View):
         except:
             address = None
 
+        strict_redis = get_redis_connection()
+        key = 'history_%s' % request.user.id
+
+        goods_ids = strict_redis.lrange(key, 0, 4)
+
+        skus = []
+        for id in goods_ids:
+            try:
+                sku = GoodsSKU.objects.get(id=id)
+                skus.append(sku)
+            except GoodsSKU.DoesNotExist:
+                pass
+
         context = {
+
             'which_page': 1,
             'address': address,
-            # 'user': request.user
+            'skus': skus,
+
         }
         return render(request, 'user_center_info.html', context)
 

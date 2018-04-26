@@ -14,6 +14,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 
 from django.conf.global_settings import STATICFILES_DIRS, AUTH_USER_MODEL
+from django_redis import get_redis_connection
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -152,4 +153,8 @@ SESSION_CACHE_ALIAS = "default"
 # 如果未登录，则跳转到如下url地址
 LOGIN_URL = '/users/login'
 
+# 连接到Redis数据库，返回一个StrictRedis的对象
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'static/media')
+
+DEFAULT_FILE_STORAGE = 'utils.fdfs.storage.FdfsStorage'

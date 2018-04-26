@@ -4,10 +4,11 @@
 # import django
 # os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dailyfresh.settings")
 # django.setup()
-
-
-from celery.app.base import Celery
+from celery import Celery
 from django.core.mail import send_mail
+from django.template import loader
+
+from apps.goods.models import *
 from dailyfresh import settings
 
 # 创建celery客户端
@@ -33,3 +34,43 @@ def send_active_mail(username, email, token):
     send_mail(subject, message, from_email, recipient_list,
               html_message=html_message)
     pass
+
+
+@app.task
+def generate_static_index_html():
+    categories = GoodsCategory.objects.all()
+
+    slide_skus = IndexSlideGoods.objects.all().order_by('index')[0:4]
+
+    promotions = IndexPromotion.objects.all().order_by('index')[0:2]
+
+    for category in categories:
+        text_skus = IndexCategoryGoods.objects.filter(
+            category=category, display_type=0).order_by('index')
+
+        img_skus = IndexCategoryGoods.objects.filter(
+            category=category, display_type=1).order_by('index')[0:4]
+
+        # 动态地给类别新增实例属性
+        category.text_skus = text_skus
+        # 动态地给类别新增实例属性
+        category.img_skus = img_skus
+
+    cart_count = 0
+
+    # 定义模板数据
+    context = {
+        'categories': categories,
+        'slide_skus': slide_skus,
+        'promotions': promotions,
+        'cart_count': cart_count,
+    }
+
+    template = loader.get_template('index.html')
+
+    html_str = template.render(context)
+
+    path = '/home/python/Desktop/static_html/index.html'
+
+    with open(path,'w') as file:
+        file.write(html_str)
