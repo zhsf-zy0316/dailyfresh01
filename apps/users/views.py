@@ -1,9 +1,8 @@
 import re
-from time import sleep
 
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
+from django.core.paginator import Paginator, EmptyPage
 from django.core.urlresolvers import reverse
 from django.db.utils import IntegrityError
 from django.http.response import HttpResponse
@@ -11,8 +10,10 @@ from django.shortcuts import render, redirect
 from django.views.generic import View
 from django_redis import get_redis_connection
 from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired
+from redis.client import StrictRedis
 
 from apps.goods.models import GoodsSKU
+from apps.orders.models import OrderInfo, OrderGoods
 from apps.users.models import User, Address
 from celery_tasks.tasks import send_active_mail
 from dailyfresh import settings
@@ -92,12 +93,12 @@ class RegisterView(View):
     @staticmethod
     def send_active_mail(username, email, token):
         """发送激活邮件"""
-        subject = '天天生鲜激活邮件'         # 标题，必须指定
-        message = ''                       # 正文
-        from_email = settings.EMAIL_FROM   # 发件人
-        recipient_list = [email]           # 收件人
+        subject = '天天生鲜激活邮件'  # 标题，必须指定
+        message = ''  # 正文
+        from_email = settings.EMAIL_FROM  # 发件人
+        recipient_list = [email]  # 收件人
         # 正文 （带有html样式）
-        html_message = ('<h3>尊敬的%s：感谢注册天天生鲜</h3>' 
+        html_message = ('<h3>尊敬的%s：感谢注册天天生鲜</h3>'
                         '请点击以下链接激活您的帐号:<br/>'
                         '<a href="http://127.0.0.1:8000/users/active/%s">'
                         'http://127.0.0.1:8000/users/active/%s</a>'
@@ -108,7 +109,6 @@ class RegisterView(View):
 
 
 class ActiveView(View):
-
     def get(self, request, token: str):
         """
         用户激活
@@ -135,13 +135,11 @@ class ActiveView(View):
 
 
 class LoginView(View):
-
     def get(self, request):
         """进入登录界面"""
         return render(request, 'login.html')
 
     def post(self, request):
-
         # 获取post请求参数
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -177,17 +175,20 @@ class LoginView(View):
         # 登录成功后，要跳转到next指向的界面
         next = request.GET.get('next')
         if next:
-            # 不为空，则跳转到next指向的界面: /users/address
-            return redirect(next)
+            # 如果要进入的是确认订单界面，则登录成功后，跳转到购物车界面即可
+            if next == '/orders/place':
+                response = redirect('/cart')
+            else:
+                response = redirect(next)
+            return response
         else:
             # 为空，则默认跳转到首页
             # return redirect('/index')
-            # 注意： urls.py文件中，urlspatterns是一个列表，不要使用{}
+            # 注意： urls.py文件中，urlpatterns是一个列表，不要使用{}
             return redirect(reverse('goods:index'))
 
 
 class LogoutView(View):
-
     def get(self, request):
         """注销"""
         # 调用 django的logout方法，实现退出，会删除登录用户的id（session键值对数据）
@@ -196,54 +197,87 @@ class LogoutView(View):
 
 
 class UserInfoView(LoginRequiredMixin, View):
-
     def get(self, request):
-
         # # 未登录则跳转到登录界面
         # if not request.user.is_authenticated():
         #     return redirect(reverse('users:login'))
 
-        # 查询登录用户最新添加的地址，并显示出来
-        try:
-            address = request.user.address_set.latest('create_time')
-        except:
-            address = None
-
-        strict_redis = get_redis_connection()
+        # todo: 从Redis中读取当前登录用户浏览过的商品
+        # 返回一个StrictRedis
+        # strict_redis = get_redis_connection('default')
+        # strict_redis = StrictRedis(host='127.0.0.1', port=6379, db=0)
+        strict_redis = get_redis_connection()  # type: StrictRedis
+        # 读取所有的商品id,返回一个 列表
+        # history_1 = [3, 1, 2]
         key = 'history_%s' % request.user.id
+        # 最多只取出5个商品id: [3, 1, 2]
+        sku_ids = strict_redis.lrange(key, 0, 4)
+        print(sku_ids)
 
-        goods_ids = strict_redis.lrange(key, 0, 4)
-
-        skus = []
-        for id in goods_ids:
+        # 顺序有问题： 根据商品id，查询出商品对象
+        # select * from df_goods_sku where id in [3,1,2]
+        # skus = GoodsSKU.objects.filter(id__in=sku_ids)
+        # 解决：
+        skus = []  # 保存查询出来的商品对象
+        for sku_id in sku_ids:  # sku_id: bytes
             try:
-                sku = GoodsSKU.objects.get(id=id)
+                sku = GoodsSKU.objects.get(id=int(sku_id))
                 skus.append(sku)
-            except GoodsSKU.DoesNotExist:
+            except:
                 pass
 
+        # 查询登录用户最新添加的地址，并显示出来
+        address = request.user.address_set.latest('create_time')
         context = {
-
             'which_page': 1,
             'address': address,
             'skus': skus,
-
+            # 'user': request.user
         }
         return render(request, 'user_center_info.html', context)
 
 
 class UserOrderView(LoginRequiredMixin, View):
 
-    def get(self, request):
+    def get(self, request, page_no):
+
+        # 查询当前登录用户所有的订单(降序排列)
+        orders = OrderInfo.objects.filter(
+            user=request.user).order_by('-create_time')
+        for order in orders:
+            # 查询某个订单下所有的商品
+            order_skus = OrderGoods.objects.filter(order=order)
+            for order_sku in order_skus:
+                # 循环每一个订单商品，计算小计金额
+                order_sku.amount = order_sku.price * order_sku.count
+
+            # 新增三个实例属性
+            # 订单状态
+            order.status_desc = OrderInfo.ORDER_STATUS.get(order.status)
+            # 实付金额
+            order.total_pay = order.trans_cost + order.total_amount
+            # 订单商品
+            order.order_skus = order_skus
+
+        # 创建分页对象
+        # 参数2：每页显示两条
+        paginator = Paginator(orders, 1)
+        # 获取page对象
+        try:
+            page = paginator.page(page_no)
+        except EmptyPage:  # 没有获取到分页
+            page = paginator.page(1)
+
         context = {
             'which_page': 2,
+            'page': page,
+            'page_range': paginator.page_range,  # 页码列表[1,2,3,4]
         }
+
         return render(request, 'user_center_order.html', context)
 
 
-# mro
 class UserAddressView(LoginRequiredMixin, View):
-
     def get(self, request):
 
         # 查询登录用户最新添加的地址，并显示出来
@@ -289,28 +323,9 @@ class UserAddressView(LoginRequiredMixin, View):
 
 # login_required(views.address)
 # @login_required
-def address(request):
-    """进入用户地址界面"""
-    context = {
-        'which_page': 3,
-    }
-    return render(request, 'user_center_site.html', context)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# def address(request):
+#     """进入用户地址界面"""
+#     context = {
+#         'which_page': 3,
+#     }
+#     return render(request, 'user_center_site.html', context)

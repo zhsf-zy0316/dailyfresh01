@@ -15,7 +15,7 @@ class LoginRequiredView(View):
 
 
 # 混合：扩展/新增一个功能
-class LoginRequiredMixin(object):
+class LoginRequiredMixin(LoginRequiredView):
     """会作登录检测的类视图"""
 
     # 需要定义为一个类方法

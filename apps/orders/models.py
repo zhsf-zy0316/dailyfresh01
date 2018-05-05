@@ -52,8 +52,7 @@ class OrderInfo(BaseModel):
                                           default=1, verbose_name="支付方式")
     status = models.SmallIntegerField(choices=ORDER_STATUS_CHOICES,
                                       default=1, verbose_name="订单状态")
-    trade_no = models.CharField(max_length=100, default='',
-                                unique=True, null=True,
+    trade_no = models.CharField(max_length=100, default='',null=True,
                                 blank=True, verbose_name="支付编号")
     user = models.ForeignKey(User, verbose_name="下单用户")
     address = models.ForeignKey(Address, verbose_name="收货地址")

@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+
+{% block title %}
+    天天生鲜-商品列表
+{% endblock %}
+
+{% block body %}
+
+    <div class="navbar_con">
+        <div class="navbar clearfix">
+            <div class="subnav_con fl">
+                <h1>全部商品分类</h1>
+                <span></span>
+                <ul class="subnav">
+                    {% for category in categories %}
+
+                        <li><a href="{% url 'goods:list' category.id 1 %}"
+                               class="{{ category.logo }}">{{ category.name }}</a></li>
+                    {% endfor %}
+
+                </ul>
+            </div>
+            <ul class="navlist fl">
+                <li><a href="{% url 'goods:index' %}">首页</a></li>
+                <li class="interval">|</li>
+                <li><a href="">手机生鲜</a></li>
+                <li class="interval">|</li>
+                <li><a href="">抽奖</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="breadcrumb">
+        <a href="{% url 'goods:index' %}">全部分类</a>
+        <span>></span>
+
+        {# 显示当前类别 #}
+        <a href="{% url 'goods:list' category.id 1 %}">{{ category.name }}</a>
+
+    </div>
+
+    <div class="main_wrap clearfix">
+        <div class="l_wrap fl clearfix">
+            <div class="new_goods">
+                <h3>新品推荐</h3>
+                <ul>
+                    {% for new_sku in new_skus %}
+                        <li>
+                            <a href="{% url 'goods:detail' new_sku.id %}"><img
+                                    src="{{ new_sku.default_image.url }}"></a>
+                            <h4><a href="{% url 'goods:detail' new_sku.id %}">
+                                {{ new_sku.name }}</a></h4>
+                            <div class="prize">￥{{ new_sku.price }}</div>
+                        </li>
+                    {% endfor %}
+
+                </ul>
+            </div>
+        </div>
+
+        <div class="r_wrap fr clearfix">
+            <div class="sort_bar">
+
+
+                <a href="{% url 'goods:list' category.id 1 %}?sort=default"
+                   {% if sort == 'default' %}class="active"{% endif %}>默认</a>
+                <a href="{% url 'goods:list' category.id 1 %}?sort=price"
+                   {% if sort == 'price' %}class="active"{% endif %}>价格</a>
+                <a href="{% url 'goods:list' category.id 1 %}?sort=hot"
+                   {% if sort == 'hot' %}class="active"{% endif %}>人气</a>
+
+            </div>
+
+            <ul class="goods_type_list clearfix">
+                {#                <div>你到底能不能显示</div>#}
+
+                {% for sku in page.object_list %}
+                    <li>
+                        <a href="{% url 'goods:detail' sku.id %}">
+                            <img src="{{ sku.default_image.url }}"></a>
+                        <h4><a href="{% url 'goods:detail' sku.id %}">
+                            {{ sku.name }}</a></h4>
+                        <div class="operate">
+                            <span class="prize">￥{{ sku.price }}</span>
+                            <span class="unit">{{ sku.price }}/{{ sku.unit }}</span>
+                            <a href="#" class="add_goods" title="加入购物车" sku_id="{{ sku.id }}"></a>
+                        </div>
+                    </li>
+                {% endfor %}
+
+            </ul>
+
+            <div class="pagenation">
+
+
+                {% if page.has_previous %}
+                    <a href="{% url 'goods:list' category.id page.previous_page_number %}?sort={{ sort }}">上一页</a>
+                {% endif %}
+
+                {% for index in page_list %}
+                    <a href="{% url 'goods:list' category.id index %}?sort={{ sort }}"
+                       {% if index == page.number %}class="active"{% endif %}>{{ index }}</a>
+                {% endfor %}
+
+                {% if page.has_next %}
+                    <a href="{% url 'goods:list' category.id page.next_page_number %}?sort={{ sort }}">下一页</a>
+                {% endif %}
+
+            </div>
+
+        </div>
+    </div>
+    {% block bottom_js %}
+        <script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+
+        {% csrf_token %}
+        <script>
+            var csrf = $("input[name='csrfmiddlewaretoken']").val();
+            var sku_id = $('.add_goods').attr('sku_id');
+            var params = {
+                sku_id: sku_id,
+                count: 1,
+                csrfmiddlewaretoken: csrf
+            };
+            $('.add_goods').click(function () {
+                $.post("/cart/add", params, function (result){
+                    if (result.code == 0){
+                        window.location.href = "/cart/add"
+                    }
+                });
+            });
+        </script>
+    {% endblock %}
+{% endblock %}

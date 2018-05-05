@@ -5,13 +5,6 @@
     天天生鲜-首页
 {% endblock %}
 
-{% block top_js %}
-    <script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
-    <script type="text/javascript" src="{% static 'js/jquery-ui.min.js' %}"></script>
-    <script type="text/javascript" src="{% static 'js/slide.js' %}"></script>
-{% endblock %}
-
-
 {% block body %}
     <div class="navbar_con">
         <div class="navbar">
@@ -53,7 +46,7 @@
 
             {# 显示促销活动 #}
             {% for promotion in promotions %}
-                <a href="{% url 'goods:detail' promotion.sku.id %}"><img src="{{ promotion.image.url }}"></a>
+                <a href="{% url 'goods:detail' promotion.id %}"><img src="{{ promotion.image.url }}"></a>
             {% endfor %}
 
 
@@ -75,7 +68,7 @@
 
 
             </div>
-            <a href="#" class="goods_more fr" id="fruit_more">查看更多 ></a>
+            <a href="{% url 'goods:list' category.id 1 %}" class="goods_more fr" id="fruit_more">查看更多 ></a>
         </div>
 
         <div class="goods_con clearfix">
@@ -83,7 +76,7 @@
             <ul class="goods_list fl">
 
                 {# 显示类别图片商品 #}
-                {% for c_sku in category.img_skus %}
+                {% for c_sku in category.image_skus %}
                     <li>
                         <h4><a href="{% url 'goods:detail' c_sku.sku.id %}">{{ c_sku.sku.name }}</a></h4>
                         <a href="{% url 'goods:detail' c_sku.sku.id %}"><img src="{{ c_sku.sku.default_image.url }}"></a>
@@ -100,7 +93,7 @@
 {% endblock %}
 
 {% block bottom_js %}
-    <script type="text/javascript" src="js/slideshow.js"></script>
+
     <script type="text/javascript">
         BCSlideshow('focuspic');
         var oFruit = document.getElementById('fruit_more');

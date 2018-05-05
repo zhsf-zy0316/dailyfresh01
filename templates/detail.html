@@ -4,7 +4,9 @@
     天天生鲜-商品详情
 {% endblock %}
 
+{% load staticfiles %}
 {% block body %}
+
     <div class="navbar_con">
         <div class="navbar clearfix">
             <div class="subnav_con fl">
@@ -14,14 +16,15 @@
 
                     {# 显示类别 #}
                     {% for category in categories %}
-                        <li><a href="#" class="fruit">{{ category.name }}</a></li>
+                        <li><a href="{% url 'goods:list' category.id 1 %}"
+                               class="{{ category.logo }}">{{ category.name }}</a></li>
                     {% endfor %}
 
 
                 </ul>
             </div>
             <ul class="navlist fl">
-                <li><a href="">首页</a></li>
+                <li><a href="{% url 'goods:index' %}">首页</a></li>
                 <li class="interval">|</li>
                 <li><a href="">手机生鲜</a></li>
                 <li class="interval">|</li>
@@ -33,7 +36,7 @@
     <div class="breadcrumb">
         <a href="#">全部分类</a>
         <span>></span>
-        <a href="#">{{ goods_sku.category.name }}</a>
+        <a href="{% url 'goods:list' goods_sku.category.id 1 %}">{{ goods_sku.category.name }}</a>
         <span>></span>
         <a href="#">商品详情</a>
     </div>
@@ -44,8 +47,8 @@
                  src="{{ goods_sku.default_image.url }}"></div>
 
         <div class="goods_detail_list fr">
-            <h3>{{ sku.name }}</h3>
-            <p>{{ sku.title }}</p>
+            <h3>{{ goods_sku.name }}</h3>
+            <p>{{ goods_sku.title }}</p>
             <div class="prize_bar">
                 <span class="show_pirze">¥<em>{{ goods_sku.price }}</em></span>
                 <span class="show_unit">单  位：{{ goods_sku.unit }}</span>
@@ -76,8 +79,10 @@
             </div>
             <div class="total">总价：<em>16.80元</em></div>
             <div class="operate_btn">
+
                 <a href="javascript:;" class="buy_btn">立即购买</a>
-                <a href="javascript:;" class="add_cart" id="add_cart">加入购物车</a>
+                <a href="javascript:;" class="add_cart" id="add_cart" sku_id="{{ goods_sku.id }}">加入购物车</a>
+
             </div>
         </div>
     </div>
@@ -104,48 +109,138 @@
             </div>
         </div>
 
-        <div class="r_wrap fr clearfix">
-            <ul class="detail_tab clearfix">
-                <li class="active">商品介绍</li>
-                <li>评论</li>
-            </ul>
+        <ul class="detail_tab clearfix">
+            <li id="li_detail" class="active">商品介绍</li>
+            <li id="li_comment">评论</li>
+        </ul>
 
-            <div class="tab_content">
-                <dl>
-                    <dt>商品详情：</dt>
-                    <dd>{{ goods_sku.spu.desc|safe }}</dd>
-                </dl>
-            </div>
-
+        <div class="tab_content" id="div_detail">
+            <dl>
+                <dt>商品详情：</dt>
+                ...
+            </dl>
         </div>
+
+        <div class="tab_comment" id="div_comment">
+            {% for order_sku in order_skus %}
+                <br/>
+                时间:{{ order_sku.update_date }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;用户:{{ order_sku.order.user.username }}
+                <br/>
+                {{ order_sku.comment }}  <br/>
+            {% endfor %}
+        </div>
+
     </div>
+    </div>
+
 {% endblock %}
 
 
 {% block bottom_js %}
     <div class="add_jump"></div>
-
-    <script type="text/javascript" src="js/jquery-1.12.2.js"></script>
+    {% csrf_token %}
+    <script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
     <script type="text/javascript">
-        var $add_x = $('#add_cart').offset().top;
-        var $add_y = $('#add_cart').offset().left;
 
-        var $to_x = $('#show_count').offset().top;
-        var $to_y = $('#show_count').offset().left;
+        $(function () {
+            var $add_num = $('.add'),
+                $minus_num = $('.minus'),
+                $total = $('.total'),
+                $num_show = $('.num_show');
+            $(function () {
+                $num_show.val(1);
+                $total.find('em').html({{ goods_sku.price }});
+            });
+            $add_num.click(function () {
+                var num = parseInt($num_show.val());
 
-        $(".add_jump").css({'left': $add_y + 80, 'top': $add_x + 10, 'display': 'block'})
-        $('#add_cart').click(function () {
-            $(".add_jump").stop().animate({
-                    'left': $to_y + 7,
-                    'top': $to_x + 7
-                },
-                "fast", function () {
-                    $(".add_jump").fadeOut('fast', function () {
-                        $('#show_count').html(2);
-                    });
+                num += 1;
+                if (num > 999) {
+                    num = 999
+                }
+                $num_show.val(num);
+                var tatal_num = parseFloat({{ goods_sku.price }}) * parseInt($num_show.val());
+                $total.find('em').html(tatal_num.toFixed(2) + '元');
+            });
+            $minus_num.click(function () {
+                var num = parseInt($num_show.val());
 
-                });
-        })
+                num -= 1;
+                if (num < 1) {
+                    num = 1
+                }
+                $num_show.val(num);
+                var tatal_num = parseFloat({{ goods_sku.price }}) * parseInt($num_show.val());
+                $total.find('em').html(tatal_num.toFixed(2) + '元');
+            });
+            $num_show.blur(function () {
+                var ret = /^\d+$/;
+                if (ret.test(parseInt($(this).val()))) {
+                }
+                else {
+                    $(this).val(1)
+                }
+                var tatal_num = parseFloat({{ goods_sku.price }}) * parseInt($num_show.val());
+                $total.find('em').html(tatal_num.toFixed(2) + '元');
+            });
+
+
+            var $add_x = $('#add_cart').offset().top;
+            var $add_y = $('#add_cart').offset().left;
+
+            var $to_x = $('#show_count').offset().top;
+            var $to_y = $('#show_count').offset().left;
+
+            $(".add_jump").css({'left': $add_y + 80, 'top': $add_x + 10, 'display': 'block'});
+            $('#add_cart').click(function () {
+                var sku_id = $(this).attr('sku_id');
+                var count = $('.num_show').val();
+                var csrf = $('input[name="csrfmiddlewaretoken"]').val();
+
+                var params = {
+                    sku_id: sku_id,
+                    count: count,
+                    csrfmiddlewaretoken: csrf
+                };
+                $.post("{% url 'cart:add' %}", params, function (result) {
+                        if (result.code == 0) {
+                            $(".add_jump").stop().animate({
+                                    'left': $to_y + 7,
+                                    'top': $to_x + 7
+                                },
+                                "fast", function () {
+                                    $(".add_jump").fadeOut('fast', function () {
+                                        $('#show_count').html(result.cart_count);
+                                    });
+
+                                });
+                        } else {
+                            // 提示出错信息
+                            alert(result.errmsg);
+                        }
+                    }
+                );
+            })
+        });
+        // 进入详情界面时,隐藏评论的显示
+        $('#div_comment').hide();
+
+        // 点击'评论'时, 高亮显示'评论'标签
+        $('#li_comment').click(function () {
+            $('#li_detail').removeClass('active'); // 删除class
+            $('#li_comment').addClass('active');   // 添加class
+            $('#div_detail').hide();
+            $('#div_comment').show();
+        });
+
+        // 点击'商品介绍'时, 高亮显示'商品介绍'标签
+        $('#li_detail').click(function () {
+            $('#li_detail').addClass('active');     // 删除class
+            $('#li_comment').removeClass('active'); // 添加class
+            $('#div_detail').show();
+            $('#div_comment').hide();
+        });
+
     </script>
 
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends 'base_user_center.html' %}
-
+{% load staticfiles %}
 {% block right_body %}
     <div class="right_content clearfix">
         <div class="info_con clearfix">
@@ -17,17 +17,40 @@
 
                 {% for sku in skus %}
                     <li>
-                             {# fastDFS: 商品图片显示: sku.default_image.url #}
-                        <a href="detail.html"><img src="{{ sku.default_image }}"></a>
-                        <h4><a href="detail.html">{{ sku.id }}. {{ sku.name }}</a></h4>
+                        <a href="{% url 'goods:detail' sku.id %}"><img src="{{ sku.default_image.url }}"></a>
+                        <h4><a href="{% url 'goods:detail' sku.id %}">{{ sku.id }}. {{ sku.name }}</a></h4>
                         <div class="operate">
-                        <span class="prize">￥{{ sku.price }}</span>
-                        <span class="unit">{{ sku.price }}/{{ sku.unit }}</span>
-                        <a href="#" class="add_goods" title="加入购物车"></a>
+                            <span class="prize">￥{{ sku.price }}</span>
+                            <span class="unit">{{ sku.price }}/{{ sku.unit }}</span>
+                            <a href="#" class="add_goods" title="加入购物车" sku_id="{{ sku.id }}"></a>
+                        </div>
                     </li>
 
                 {% endfor %}
             </ul>
         </div>
     </div>
+    {% block bottom_js %}
+        <script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+
+        {% csrf_token %}
+
+        <script>
+            var csrf = $("input[name='csrfmiddlewaretoken']").val();
+            var sku_id = $('.add_goods').attr('sku_id');
+            var params = {
+                sku_id: sku_id,
+                count: 1,
+                csrfmiddlewaretoken: csrf
+            };
+            $('.add_goods').click(function () {
+                $.post("/cart/add", params, function (result) {
+                    if (result.code == 0) {
+                        window.location.href = '/cart/info'
+                    }
+                });
+            });
+        </script>
+
+    {% endblock %}
 {% endblock %}

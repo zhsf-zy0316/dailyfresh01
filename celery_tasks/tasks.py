@@ -4,6 +4,8 @@
 # import django
 # os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dailyfresh.settings")
 # django.setup()
+from time import sleep
+
 from celery import Celery
 from django.core.mail import send_mail
 from django.template import loader
@@ -38,6 +40,7 @@ def send_active_mail(username, email, token):
 
 @app.task
 def generate_static_index_html():
+    sleep(2)
     categories = GoodsCategory.objects.all()
 
     slide_skus = IndexSlideGoods.objects.all().order_by('index')[0:4]
@@ -54,7 +57,7 @@ def generate_static_index_html():
         # 动态地给类别新增实例属性
         category.text_skus = text_skus
         # 动态地给类别新增实例属性
-        category.img_skus = img_skus
+        category.image_skus = img_skus
 
     cart_count = 0
 
@@ -70,7 +73,7 @@ def generate_static_index_html():
 
     html_str = template.render(context)
 
-    path = '/home/python/Desktop/static_html/index.html'
+    path = '/home/python/Desktop/static/index.html'
 
     with open(path,'w') as file:
         file.write(html_str)

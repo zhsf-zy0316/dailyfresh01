@@ -28,7 +28,7 @@ SECRET_KEY = '%iu$^pn0*_e_njdnz_jwrm3l1-h-#ugzhlh+a2d(!34g!3q1v%'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # 使用自定义的User
 AUTH_USER_MODEL = 'users.User'
@@ -46,6 +46,7 @@ INSTALLED_APPS = (
     'apps.goods',           # 商品模块
     'apps.cart',            # 购物车模块
     'apps.orders',          # 订单模块
+    'haystack',             # 搜索框架
 )
 
 # 配置控件显示样式
@@ -123,6 +124,7 @@ STATIC_URL = '/static/'
 
 # 指定静态文件所在的目录
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = '/home/python/Desktop/static'
 
 
 # 邮件发送配置
@@ -158,3 +160,14 @@ LOGIN_URL = '/users/login'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'static/media')
 
 DEFAULT_FILE_STORAGE = 'utils.fdfs.storage.FdfsStorage'
+
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        # 使用whoosh搜索引擎
+        'ENGINE': 'haystack.backends.whoosh_cn_backend.WhooshEngine',
+        # 指定生成的索引库保存在哪个目录下
+        'PATH': os.path.join(BASE_DIR, 'whoosh_index'),
+    }
+}
+
+HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'

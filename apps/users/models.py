@@ -40,13 +40,7 @@ class Address(BaseModel):
         db_table = "df_address"
 
 
-class TestModel(BaseModel):
-    """测试用"""
 
-    name = models.CharField(max_length=20)
-
-    # 商品详情，使用第三方的: HTMLField
-    goods_detail = HTMLField(default='', verbose_name='商品详情')
 
 
 
